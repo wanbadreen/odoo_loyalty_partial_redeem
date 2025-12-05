@@ -1,0 +1,55 @@
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Loyalty Partial Redeem</title>
+  </head>
+  <body>
+    <h1>Loyalty Partial Redeem (Odoo 18)</h1>
+
+    <p>
+      This module enables <strong>partial redemption of loyalty points</strong> directly on Sales Orders.
+      It integrates with Odoo’s native <em>Loyalty Program</em>, <em>Loyalty Cards</em>, and <em>Loyalty History</em>,
+      so you don't need to maintain a separate loyalty engine.
+    </p>
+
+    <h2>Key Features</h2>
+    <ul>
+      <li>Redeem any number of loyalty points (supports partial redeem, not only full balance).</li>
+      <li>Automatic discount line creation on the quotation / sales order.</li>
+      <li>Configurable value per point (RM per point) in the wizard.</li>
+      <li>Automatic update of the loyalty card points after redeem.</li>
+      <li>Automatic creation of a loyalty history record for full traceability.</li>
+      <li>Simple, user-friendly wizard integrated into the standard Sales Order form.</li>
+    </ul>
+
+    <h2>How It Works</h2>
+    <ol>
+      <li>Create a quotation or open an existing Sales Order.</li>
+      <li>Click the <strong>Redeem Loyalty Points</strong> button in the header.</li>
+      <li>A pop-up wizard shows the customer's available points.</li>
+      <li>Enter how many points to redeem and confirm.</li>
+      <li>The module computes the discount (points × RM per point) and adds a negative line to the order.</li>
+      <li>The loyalty card balance and loyalty history are updated automatically.</li>
+    </ol>
+
+    <h2>Technical Details</h2>
+    <ul>
+      <li>Compatible with <strong>Odoo 18</strong>.</li>
+      <li>Depends on: <code>sale_management</code>, <code>loyalty</code>.</li>
+      <li>Wizard model: <code>loyalty.partial.redeem.wizard</code>.</li>
+      <li>Works with Odoo standard <code>loyalty.program</code>, <code>loyalty.card</code>, and <code>loyalty.history</code>.</li>
+      <li>Discount is applied using a dedicated service product (Loyalty Redemption).</li>
+    </ul>
+
+    <h2>Notes</h2>
+    <p>
+      This addon focuses on keeping the flow very simple for the sales team:
+      open order → click button → redeem points → confirm. No complex configuration is required.
+    </p>
+
+    <h2>Author</h2>
+    <p>
+      Developed by <strong>Wan Badreen</strong>.
+    </p>
+  </body>
+</html>
