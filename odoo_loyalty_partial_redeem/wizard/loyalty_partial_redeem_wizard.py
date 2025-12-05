@@ -73,7 +73,6 @@ class LoyaltyPartialRedeemWizard(models.TransientModel):
         order = self.sale_order_id
         card = self.loyalty_card_id
 
-        # 1) Cari product "loyalty point redemption"
         discount_product = self.env['product.product'].search([
             ('default_code', '=', 'Loyalty Point Redemption'),
         ], limit=1)
@@ -89,7 +88,6 @@ class LoyaltyPartialRedeemWizard(models.TransientModel):
                 "Please create it or adjust the default_code in the wizard."
             )
 
-        # 2) Create line diskaun dalam quotation
         self.env['sale.order.line'].create({
             'order_id': order.id,
             'product_id': discount_product.id,
@@ -98,11 +96,10 @@ class LoyaltyPartialRedeemWizard(models.TransientModel):
             'price_unit': -amount,  # negative = diskaun
         })
 
-        # 3) Tolak point dalam loyalty card
-        # NOTE: kalau nama field balance lain dari 'points', tukar sini
+
         card.points = (card.points or 0.0) - self.points_to_use
 
-        # 4) Rekodkan penggunaan dalam history (supaya 'Used' update)
+
         self.env['loyalty.history'].create({
             'card_id': card.id,
             'description': f"Redeem {self.points_to_use:.0f} pts on order {order.name}",
