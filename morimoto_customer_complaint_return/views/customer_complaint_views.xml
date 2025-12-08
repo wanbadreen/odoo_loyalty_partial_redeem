@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- LIST VIEW -->
+    <record id="view_customer_complaint_list" model="ir.ui.view">
+        <field name="name">customer.complaint.list</field>
+        <field name="model">customer.complaint</field>
+        <field name="arch" type="xml">
+            <list string="Customer Complaints">
+                <field name="name"/>
+                <field name="date_reported"/>
+                <field name="partner_id"/>
+                <field name="channel"/>
+                <field name="complaint_type"/>
+                <field name="invoice_id"/>
+                <field name="picking_id"/>
+                <field name="return_total_qty"/>
+                <field name="state"/>
+                <field name="responsible_id"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- SEARCH VIEW -->
+    <record id="view_customer_complaint_search" model="ir.ui.view">
+        <field name="name">customer.complaint.search</field>
+        <field name="model">customer.complaint</field>
+        <field name="arch" type="xml">
+            <search string="Search Complaints">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="invoice_id"/>
+                <field name="sale_order_id"/>
+                <field name="picking_id"/>
+                <field name="channel"/>
+                <field name="complaint_type"/>
+                <field name="responsible_id"/>
+
+                <filter name="new" string="New" domain="[('state','=','new')]"/>
+                <filter name="in_progress" string="In Progress" domain="[('state','=','in_progress')]"/>
+                <filter name="waiting_return" string="Waiting Return" domain="[('state','=','waiting_return')]"/>
+                <filter name="closed" string="Closed" domain="[('state','=','closed')]"/>
+
+                <filter name="this_month" string="This Month"
+                        domain="[('date_reported','&gt;=', (context_today().replace(day=1)))]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- RETURN LINE LIST (UNTUK MODEL customer.complaint.line) -->
+    <record id="view_customer_complaint_line_list" model="ir.ui.view">
+        <field name="name">customer.complaint.line.list</field>
+        <field name="model">customer.complaint.line</field>
+        <field name="arch" type="xml">
+            <list string="Returned Products">
+                <field name="product_id"/>
+                <field name="lot_id"/>
+                <field name="quantity_purchased"/>
+                <field name="quantity_returned"/>
+                <field name="uom_id"/>
+                <field name="reason"/>
+                <field name="remark"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- MAIN FORM VIEW -->
+    <record id="view_customer_complaint_form" model="ir.ui.view">
+        <field name="name">customer.complaint.form</field>
+        <field name="model">customer.complaint</field>
+        <field name="arch" type="xml">
+            <form string="Customer Complaint">
+                <header>
+                    <button name="action_set_new" type="object" string="New"/>
+                    <button name="action_set_in_progress" type="object" string="In Progress" class="btn-primary"/>
+                    <button name="action_set_waiting_return" type="object" string="Waiting Return Stock" class="btn-secondary"/>
+                    <button name="action_set_closed" type="object" string="Closed" class="btn-success"/>
+                    <button name="action_set_cancelled" type="object" string="Cancelled" class="btn-secondary"/>
+
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="new,in_progress,waiting_return,closed,cancelled"/>
+                </header>
+
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+
+                    <!-- TOP INFO -->
+                    <group>
+                        <group>
+                            <field name="date_reported"/>
+                            <field name="partner_id"/>
+                            <field name="channel"/>
+                            <field name="complaint_type"/>
+                        </group>
+                        <group>
+                            <field name="sale_order_id"
+                                   context="{'default_partner_id': partner_id}"/>
+                            <field name="invoice_id"
+                                   context="{'default_partner_id': partner_id}"/>
+                            <field name="picking_id"
+                                   context="{'default_partner_id': partner_id}"/>
+                            <field name="responsible_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+
+                    <!-- TABS -->
+                    <notebook>
+                        <!-- TAB 1: COMPLAINT DETAILS -->
+                        <page string="Complaint Details">
+                            <group>
+                                <field name="description"
+                                       placeholder="Write the customer's complaint here..."/>
+                                <field name="internal_note"/>
+                                <field name="resolution"/>
+                            </group>
+                        </page>
+
+                        <!-- TAB 2: RETURNED PRODUCTS -->
+                        <page string="Returned Products">
+                            <group>
+                                <field name="is_return_involved"/>
+                                <field name="return_total_qty" readonly="1"/>
+                                <field name="return_line_count" readonly="1"/>
+                            </group>
+
+                            <field name="return_line_ids">
+                                <list editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="lot_id"/>
+                                    <field name="quantity_purchased"/>
+                                    <field name="quantity_returned"/>
+                                    <field name="uom_id"/>
+                                    <field name="reason"/>
+                                    <field name="remark"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>

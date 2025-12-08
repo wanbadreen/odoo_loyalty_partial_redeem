@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <menuitem
+        id="menu_customer_complaint_root"
+        name="Complaints &amp; Returns"
+        sequence="10"
+        web_icon="morimoto_customer_complaint_return,static/description/icon.png"
+    />
+    <menuitem id="menu_customer_complaint"
+              name="Customer Complaints"
+              parent="menu_customer_complaint_root"
+              action="action_customer_complaint"
+              sequence="10"/>
+</odoo>
