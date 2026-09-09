@@ -5,6 +5,8 @@ from odoo import http
 from odoo.http import request
 from werkzeug.exceptions import BadRequest, Forbidden, Conflict
 from .contract import validate_cart, quotation_payload
+from .customer_contract import customer_request_key
+from .customer_controllers import current_account
 
 STAGING_HOST = 'percyianodoo-morimotoformulas-staging-37481016.dev.odoo.com'
 
@@ -28,6 +30,8 @@ class Mobile(http.Controller):
         if not company or company not in request.env.user.company_ids:
             raise Forbidden()
         env = request.env(context=dict(request.env.context, allowed_company_ids=[company.id]))
+        if request.httprequest.headers.get('X-Morimoto-Customer-Session'):
+            partner_id = current_account().partner_id.id
         partner = env['res.partner'].browse(partner_id).exists()
         if not partner or not partner.active or (partner.company_id and partner.company_id != company):
             raise Forbidden()
@@ -78,6 +82,8 @@ class Mobile(http.Controller):
             seen = {line['product_id'] for line in lines}
         except (ValueError, TypeError):
             raise BadRequest()
+        if request.httprequest.headers.get('X-Morimoto-Customer-Session'):
+            key = customer_request_key(current_account().id, key)
         fingerprint = hashlib.sha256(json.dumps(sorted(lines, key=lambda l: l['product_id']), sort_keys=True).encode()).hexdigest()
         # Serialise same-key requests across workers; SQL uniqueness is the final guard.
         lock = int.from_bytes(hashlib.sha256(key.encode()).digest()[:8], 'big', signed=True)
