@@ -15,7 +15,9 @@ class TestMobilePromotionIntegration(TransactionCase):
             cls.env, login='morimoto-integration-tester',
             groups='base.group_user,sales_team.group_sale_salesman,morimoto_mobile.group_mobile_api',
         )
-        cls.partner = cls.env['res.partner'].create({'name': 'Mobile test customer'})
+        cls.partner = cls.env['res.partner'].create({
+            'name': 'Mobile test customer', 'user_id': cls.tester.id,
+        })
         cls.box = cls.env['product.product'].create({
             'name': 'Mobile integration box', 'list_price': 100,
             'type': 'consu', 'sale_ok': True, 'morimoto_mobile_enabled': True,

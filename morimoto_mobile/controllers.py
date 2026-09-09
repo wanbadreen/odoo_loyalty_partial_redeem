@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 from odoo import http
@@ -43,8 +44,27 @@ class Mobile(http.Controller):
         env, partner, company = self._context()
         pricelist = partner.property_product_pricelist
         products = env['product.product'].search(self._domain(company), limit=100, order='id')
-        return request.make_json_response({'products': [{'id': p.id, 'name': p.display_name,
-            'price': pricelist._get_product_price(p, 1.0), 'currency': pricelist.currency_id.name} for p in products]}, headers=[('Cache-Control', 'no-store')])
+        def catalog_item(product):
+            image = product.image_128
+            image_data = None
+            if image and len(image) <= 262144:
+                try:
+                    raw = base64.b64decode(image, validate=True)
+                    mime = ('image/png' if raw.startswith(b'\x89PNG\r\n\x1a\n') else
+                            'image/jpeg' if raw.startswith(b'\xff\xd8\xff') else None)
+                    if mime:
+                        encoded = image.decode('ascii') if isinstance(image, bytes) else image
+                        image_data = 'data:' + mime + ';base64,' + encoded
+                except (ValueError, UnicodeError):
+                    pass
+            return {
+                'id': product.id, 'name': product.display_name,
+                'description': (product.description_sale or '')[:4000],
+                'image_data': image_data,
+                'price': pricelist._get_product_price(product, 1.0),
+                'currency': pricelist.currency_id.name,
+            }
+        return request.make_json_response({'products': [catalog_item(p) for p in products]}, headers=[('Cache-Control', 'no-store')])
 
     @http.route('/morimoto/mobile/quotations', type='http', auth='bearer', methods=['POST'], csrf=False)
     def quotation(self):
