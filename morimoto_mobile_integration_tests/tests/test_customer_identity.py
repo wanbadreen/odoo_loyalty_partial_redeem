@@ -5,7 +5,7 @@ from odoo import fields
 from odoo.tests.common import TransactionCase, tagged, new_test_user
 from werkzeug.exceptions import Unauthorized
 from odoo.addons.morimoto_mobile.customer_contract import token_digest
-from odoo.addons.morimoto_mobile.customer_controllers import current_account, HOST
+from odoo.addons.morimoto_mobile.customer_controllers import current_account, HOST, CustomerAuth
 from odoo.addons.morimoto_mobile.controllers import Mobile
 
 
@@ -47,6 +47,30 @@ class TestCustomerIdentity(TransactionCase):
         _env, partner, _company = Mobile()._context()
         self.assertEqual(partner.id, self.partners[0].id)
         self.assertNotEqual(partner.id, self.partners[1].id)
+
+    def test_address_is_owned_and_changes_preserve_old_snapshot(self):
+        import json
+        country = self.env.ref('base.my')
+        state = self.env['res.country.state'].search([('country_id', '=', country.id)], limit=1)
+        self.assertTrue(state)
+        data = {'name': 'Receiver A', 'phone': '+60123456789', 'street': '1 Jalan Ujian', 'street2': '', 'city': 'Test City', 'zip': '50000', 'state_id': str(state.id)}
+        self.fake.make_json_response = lambda data, **kwargs: data
+        self.fake.httprequest.method = 'POST'
+        self.fake.httprequest.get_data = lambda **kwargs: json.dumps(data).encode()
+        CustomerAuth().address()
+        first = self.accounts[0].shipping_partner_id
+        self.assertEqual(first.parent_id, self.partners[0])
+        self.assertFalse(self.accounts[1].shipping_partner_id)
+        CustomerAuth().address()
+        self.assertEqual(self.accounts[0].shipping_partner_id, first)
+        data['street'] = '2 Jalan Baru'
+        CustomerAuth().address()
+        self.assertNotEqual(self.accounts[0].shipping_partner_id, first)
+        self.assertEqual(first.street, '1 Jalan Ujian')
+        data['partner_id'] = str(self.partners[1].id)
+        reply = CustomerAuth().address()
+        self.assertIn('error', reply)
+        self.assertFalse(self.accounts[1].shipping_partner_id)
 
     def test_revoked_and_expired_sessions_are_rejected(self):
         self.accounts[0].version += 1

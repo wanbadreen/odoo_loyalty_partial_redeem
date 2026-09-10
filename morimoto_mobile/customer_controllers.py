@@ -6,7 +6,7 @@ from html import escape
 from odoo import fields, http
 from odoo.http import request
 from werkzeug.exceptions import Forbidden, Unauthorized
-from .customer_contract import email_address, phone_number, login_identifier, password_value, token_digest
+from .customer_contract import email_address, phone_number, login_identifier, password_value, token_digest, delivery_values
 
 HOST = 'percyianodoo-morimotoformulas-staging-37481016.dev.odoo.com'
 SITE = 'https://morimoto-shopping-staging.badreengd.chatgpt.site'
@@ -40,6 +40,37 @@ def current_account():
 
 
 class CustomerAuth(http.Controller):
+    @http.route('/morimoto/customer/address', type='http', auth='bearer', methods=['GET', 'POST'], csrf=False)
+    def address(self):
+        account = current_account()
+        country = request.env.ref('base.my')
+        states = request.env['res.country.state'].sudo().search([('country_id', '=', country.id)], order='name')
+        if request.httprequest.method == 'POST':
+            try:
+                data = delivery_values(self._data(['name', 'phone', 'street', 'city', 'zip', 'state_id'], ['street2']))
+            except (ValueError, TypeError):
+                return self._reply({'error': 'Semak alamat, telefon, negeri dan poskod lima digit.'}, 400)
+            if data['state_id'] not in states.ids:
+                return self._reply({'error': 'Negeri tidak sah.'}, 400)
+            self._lock('address:%s' % account.id)
+            account.invalidate_recordset(['shipping_partner_id'])
+            old = account.shipping_partner_id
+            same = old and old.active and old.parent_id == account.partner_id and all(
+                (old[field].id if field == 'state_id' else old[field] or '') == value for field, value in data.items())
+            if not same:
+                # A new snapshot preserves delivery addresses on existing quotations.
+                address = request.env['res.partner'].sudo().with_context(tracking_disable=True, mail_create_nosubscribe=True).create({
+                    **data, 'type': 'delivery', 'parent_id': account.partner_id.id,
+                    'country_id': country.id, 'company_id': account.partner_id.company_id.id,
+                    'user_id': request.env.uid,
+                })
+                account.shipping_partner_id = address
+        address = account.shipping_partner_id
+        if address and (not address.active or address.parent_id != account.partner_id or address.country_id != country):
+            raise Forbidden()
+        return self._reply({'address': ({field: address[field] or '' for field in ['name', 'phone', 'street', 'street2', 'city', 'zip']} | {'state_id': str(address.state_id.id)}) if address else None,
+                            'states': [{'id': str(state.id), 'name': state.name} for state in states]})
+
     def _reply(self, data, status=200):
         return request.make_json_response(data, status=status, headers=[('Cache-Control', 'no-store')])
 

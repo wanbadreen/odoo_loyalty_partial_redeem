@@ -14,6 +14,7 @@ class CustomerAccount(models.Model):
     verified = fields.Boolean(default=False, copy=False)
     active = fields.Boolean(default=True)
     partner_id = fields.Many2one('res.partner', ondelete='restrict', copy=False)
+    shipping_partner_id = fields.Many2one('res.partner', ondelete='restrict', copy=False)
     version = fields.Integer(default=1, copy=False)
     token_hash = fields.Char(index=True, copy=False)
     token_kind = fields.Char(copy=False)

@@ -73,6 +73,11 @@ class Mobile(http.Controller):
     @http.route('/morimoto/mobile/quotations', type='http', auth='bearer', methods=['POST'], csrf=False)
     def quotation(self):
         env, partner, company = self._context()
+        shipping = None
+        if request.httprequest.headers.get('X-Morimoto-Customer-Session'):
+            shipping = current_account().shipping_partner_id
+            if not shipping or not shipping.active or shipping.parent_id != partner or (shipping.company_id and shipping.company_id != company):
+                return request.make_json_response({'error': 'Simpan alamat penghantaran dahulu.'}, status=400)
         raw = request.httprequest.get_data(cache=True)
         if len(raw) > 16384:
             raise BadRequest()
@@ -84,7 +89,8 @@ class Mobile(http.Controller):
             raise BadRequest()
         if request.httprequest.headers.get('X-Morimoto-Customer-Session'):
             key = customer_request_key(current_account().id, key)
-        fingerprint = hashlib.sha256(json.dumps(sorted(lines, key=lambda l: l['product_id']), sort_keys=True).encode()).hexdigest()
+        fingerprint_data = {'lines': lines, 'shipping_id': shipping.id} if shipping else sorted(lines, key=lambda l: l['product_id'])
+        fingerprint = hashlib.sha256(json.dumps(fingerprint_data, sort_keys=True).encode()).hexdigest()
         # Serialise same-key requests across workers; SQL uniqueness is the final guard.
         lock = int.from_bytes(hashlib.sha256(key.encode()).digest()[:8], 'big', signed=True)
         env.cr.execute('SELECT pg_advisory_xact_lock(%s)', [lock])
@@ -99,6 +105,7 @@ class Mobile(http.Controller):
             # No sudo: dedicated service user must have ordinary sale/product ACLs.
             order = env['sale.order'].with_context(tracking_disable=True, mail_create_nosubscribe=True).create({
                 'partner_id': partner.id, 'company_id': company.id,
+                **({'partner_shipping_id': shipping.id, 'partner_invoice_id': partner.id} if shipping else {}),
                 'pricelist_id': partner.property_product_pricelist.id,
                 'morimoto_mobile_key': key, 'morimoto_mobile_fingerprint': fingerprint,
                 'client_order_ref': 'MORIMOTO-STAGING-' + key,
