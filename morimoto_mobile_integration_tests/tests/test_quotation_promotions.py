@@ -4,6 +4,8 @@ from uuid import uuid4
 from odoo import fields
 from odoo.tests.common import TransactionCase, tagged, new_test_user
 from odoo.addons.morimoto_mobile.contract import quotation_payload
+from odoo.addons.morimoto_mobile.controllers import Mobile
+from werkzeug.exceptions import Conflict
 
 
 @tagged('post_install', '-at_install', 'morimoto_mobile_integration')
@@ -66,3 +68,30 @@ class TestMobilePromotionIntegration(TransactionCase):
         self.program.excluded_partner_tag_ids = tag
         order = self._create(6)
         self.assertFalse(order.order_line.filtered(lambda line: line.promotion_program_id == self.program))
+
+    def test_free_malaysia_shipping_preserves_total_and_rewards(self):
+        country = self.env.ref('base.my')
+        product = self.env['product.product'].create({'name': 'Free shipping fixture', 'type': 'service', 'list_price': 0, 'taxes_id': [(5, 0, 0)]})
+        carrier = self.env['delivery.carrier'].create({'name': 'Malaysia free fixture', 'delivery_type': 'fixed', 'fixed_price': 0, 'product_id': product.id, 'country_ids': [(6, 0, country.ids)]})
+        self.env['ir.config_parameter'].sudo().set_param('morimoto_mobile.carrier_id', str(carrier.id))
+        for name in ['Pahang', 'Sabah', 'Sarawak']:
+            state = self.env['res.country.state'].search([('country_id', '=', country.id), ('name', 'ilike', name)], limit=1)
+            self.assertTrue(state)
+            address = self.env['res.partner'].new({'name': name, 'country_id': country.id, 'state_id': state.id})
+            self.assertEqual(Mobile()._free_delivery_carrier(self.env, address, self.env.company), carrier)
+        order = self._create(3)
+        before = order.amount_total
+        gifts = order.order_line.filtered(lambda line: line.promotion_program_id == self.program).product_uom_qty
+        order.set_delivery_line(carrier, 0)
+        self.assertEqual(order.amount_total, before)
+        self.assertEqual(len(order.order_line.filtered('is_delivery')), 1)
+        self.assertEqual(order.order_line.filtered(lambda line: line.promotion_program_id == self.program).product_uom_qty, gifts)
+        payload = quotation_payload(order)
+        self.assertEqual([line['subtotal'] for line in payload['lines'] if line['is_delivery']], [0])
+        carrier.fixed_price = 10
+        with self.assertRaises(Conflict):
+            Mobile()._free_delivery_carrier(self.env, address, self.env.company)
+        carrier.fixed_price = 0
+        address.country_id = self.env.ref('base.sg')
+        with self.assertRaises(Conflict):
+            Mobile()._free_delivery_carrier(self.env, address, self.env.company)

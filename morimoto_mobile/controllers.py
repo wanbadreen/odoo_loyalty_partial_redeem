@@ -11,6 +11,19 @@ from .customer_controllers import current_account
 STAGING_HOST = 'percyianodoo-morimotoformulas-staging-37481016.dev.odoo.com'
 
 class Mobile(http.Controller):
+    def _free_delivery_carrier(self, env, shipping, company):
+        # One existing carrier, selected server-side. Never accept client prices or IDs.
+        carrier_id = int(env['ir.config_parameter'].sudo().get_param('morimoto_mobile.carrier_id', '2'))
+        carrier = env['delivery.carrier'].browse(carrier_id).exists()
+        country = env.ref('base.my')
+        if (shipping.country_id != country or not carrier or not carrier.active
+                or carrier.delivery_type != 'fixed' or carrier.fixed_price != 0
+                or (carrier.company_id and carrier.company_id != company)
+                or (carrier.country_ids and country not in carrier.country_ids)
+                or carrier.state_ids or carrier.zip_prefix_ids or not carrier.product_id.active):
+            raise Conflict('Free Malaysia delivery configuration is unavailable')
+        return carrier
+
     def _context(self):
         # Mandatory explicit bearer header; do not accept session-cookie fallback.
         if not request.httprequest.headers.get('Authorization', '').startswith('Bearer '):
@@ -113,6 +126,12 @@ class Mobile(http.Controller):
             })
             if order.state != 'draft':
                 raise Conflict('Custom module changed quotation state; transaction rolled back')
+            if shipping:
+                carrier = self._free_delivery_carrier(env, shipping, company)
+                order.set_delivery_line(carrier, 0.0)
+                delivery = order.order_line.filtered('is_delivery')
+                if len(delivery) != 1 or not order.currency_id.is_zero(delivery.price_total) or order.state != 'draft':
+                    raise Conflict('Free delivery could not be applied; transaction rolled back')
         # Existing promotion create hooks have already run. Return all generated
         # rewards, even when the gift itself is not in the mobile catalog.
         return request.make_json_response(quotation_payload(order), headers=[('Cache-Control', 'no-store')])

@@ -30,6 +30,7 @@ def quotation_payload(order):
         'lines': [{
             'name': line.name, 'quantity': line.product_uom_qty,
             'subtotal': line.price_subtotal,
+            'is_delivery': bool('is_delivery' in line._fields and line.is_delivery),
             'is_promotion_reward': bool(
                 'is_motogene_promo_reward' in line._fields
                 and line.is_motogene_promo_reward
